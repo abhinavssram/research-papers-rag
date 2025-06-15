@@ -1,2 +1,5 @@
 .env
 src/data
+src/__pycache__
+*.db
+*.db.lock
