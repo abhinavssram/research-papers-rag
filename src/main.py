@@ -1,6 +1,8 @@
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from db_config import MilvusDBConfig
+
 def chunk_and_split_documents():
     file_path = "./data/IndusValleyReport2024.pdf"
     loader = PyPDFLoader(file_path)
@@ -79,3 +81,53 @@ def get_embbedings():
 
 get_embbedings()
 
+document_ids = ['IndusValleyReport2024']
+
+print("Preparing data for insertion into Milvus according to custom schema...")
+data_to_insert = []
+
+for i, doc in enumerate(splits):
+    if i < len(embeddings):
+        data_to_insert.append({
+            "document_id": document_ids[0],
+            "document_title": document_ids[0],
+            "chunk_text": doc.page_content,
+            "embedding": embeddings[i],
+            "page_number": doc.metadata.get('page', -1),
+            "source_filename": os.path.basename(doc.metadata.get('source', 'No Source'))
+            # chunk_id is auto_id=True, so Milvus will generate it
+        })
+    else:
+        print(f"Skipping document split at index {i} as no embedding was generated.")
+
+print(len(data_to_insert))
+
+
+print("Get MilvusClient")
+db_config = MilvusDBConfig()
+client = db_config.get_client()
+
+print("Inserting data into Milvus collection...")
+if data_to_insert:
+    res = client.insert(
+        collection_name=db_config.COLLECTION_NAME,
+        data=data_to_insert
+    )
+    print(f"Successfully inserted {res['insert_count']} entities.")
+else:
+    print("No data to insert into Milvus.")
+    
+    
+print("Creating an index for the vector field...")
+index_params = client.prepare_index_params(
+    field_name="embedding",
+    index_type="AUTOINDEX",
+    metric_type="COSINE"
+)
+client.create_index(
+    collection_name=db_config.COLLECTION_NAME,
+    index_params=index_params
+)
+print("Index creation request sent. Milvus will build it in the background.")
+
+db_config.load_collection() # Use the method from the class
