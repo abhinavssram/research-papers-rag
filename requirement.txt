@@ -1,3 +1,4 @@
 pymilvus
 langchain
 langchain-anthropic
+google-genai
