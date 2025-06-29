@@ -2,3 +2,5 @@ pymilvus
 langchain
 langchain-anthropic
 google-genai
+fastapi
+uvicorn
